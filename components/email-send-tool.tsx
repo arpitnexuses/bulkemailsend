@@ -373,7 +373,7 @@ export default function EmailSendTool() {
                 </div>
               </div>
 
-              <div className="w-full max-h-60 overflow-auto rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <div className={`w-full ${emailResults.length > 10 ? 'max-h-60 overflow-y-auto' : ''} rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900`}>
                 <div className="p-4 space-y-2">
                   {emailResults.map((result, index) => (
                     <div 

@@ -39,27 +39,29 @@ export default function ContactList({
       </div>
 
       <div className="w-full overflow-x-auto">
-        <table className="min-w-full table-auto border-collapse">
-          <thead>
-            <tr className="border-b dark:border-gray-700">
-              <th className="px-4 py-2 text-left">Name</th>
-              <th className="px-4 py-2 text-left">Email</th>
-              <th className="px-4 py-2 text-left">Company</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contacts.map((contact, index) => (
-              <tr 
-                key={index}
-                className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <td className="px-4 py-2">{contact.name}</td>
-                <td className="px-4 py-2">{contact.email}</td>
-                <td className="px-4 py-2">{contact.company}</td>
+        <div className="max-h-[500px] overflow-y-auto">
+          <table className="min-w-full table-auto border-collapse">
+            <thead className="sticky top-0 bg-white">
+              <tr className="border-b dark:border-gray-700">
+                <th className="px-4 py-2 text-left">Name</th>
+                <th className="px-4 py-2 text-left">Email</th>
+                <th className="px-4 py-2 text-left">Company</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {contacts.map((contact, index) => (
+                <tr 
+                  key={index}
+                  className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <td className="px-4 py-2">{contact.name}</td>
+                  <td className="px-4 py-2">{contact.email}</td>
+                  <td className="px-4 py-2">{contact.company}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
