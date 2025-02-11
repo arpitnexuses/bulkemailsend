@@ -25,6 +25,8 @@ interface EmailFormProps {
   setSubject: (subject: string) => void
   sender: string
   setSender: (sender: string) => void
+  senderName: string
+  setSenderName: (name: string) => void
   content: string
   setContent: (content: string) => void
   delay: number
@@ -35,7 +37,9 @@ export default function EmailForm({
   subject, 
   setSubject, 
   sender, 
-  setSender, 
+  setSender,
+  senderName,
+  setSenderName,
   content, 
   setContent,
   delay,
@@ -49,7 +53,6 @@ export default function EmailForm({
   }
 
   const delayOptions = [
-    { value: 0, label: 'No delay' },
     { value: 1, label: '1 minute' },
     { value: 2, label: '2 minutes' },
     { value: 3, label: '3 minutes' },
@@ -93,6 +96,19 @@ export default function EmailForm({
             onChange={(e) => setSubject(e.target.value)}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:border-gray-300"
             placeholder="Enter a compelling subject line..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Sender Name
+          </label>
+          <input
+            type="text"
+            value={senderName}
+            onChange={(e) => setSenderName(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:border-gray-300"
+            placeholder="John Doe"
           />
         </div>
 
@@ -160,7 +176,7 @@ export default function EmailForm({
                     <div className="space-y-1">
                       <h3 className="font-medium text-gray-900">Email Preview</h3>
                       <p className="text-sm text-gray-500">Subject: {subject}</p>
-                      <p className="text-sm text-gray-500">From: {sender}</p>
+                      <p className="text-sm text-gray-500">From: {senderName} {sender}</p>
                     </div>
                     <button
                       onClick={() => setShowPreview(false)}

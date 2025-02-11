@@ -49,6 +49,7 @@ export default function EmailSendTool() {
   const [emailResults, setEmailResults] = useState<EmailResult[]>([])
   const [showResults, setShowResults] = useState(false)
   const [delay, setDelay] = useState(240)
+  const [senderName, setSenderName] = useState('')
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -242,6 +243,8 @@ export default function EmailSendTool() {
                 setSubject={setSubject}
                 sender={sender}
                 setSender={setSender}
+                senderName={senderName}
+                setSenderName={setSenderName}
                 content={content}
                 setContent={setContent}
                 delay={delay}
