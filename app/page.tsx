@@ -2,9 +2,9 @@ import EmailSendTool from "@/components/email-send-tool"
 
 export default function Home() {
   return (
-    <main >
+    <div >
       <EmailSendTool />
-    </main>
+    </div>
   )
 }
 

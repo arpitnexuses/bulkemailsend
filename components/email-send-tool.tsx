@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import EmailForm from "./email-form"
 import ContactList from "./contact-list"
 import ContactUpload from "./contact-upload"
 import type { Contact } from "@/types/contact"
+import { TimerDisplay } from "./timer-display"
 
 interface SmtpConfig {
   host: string
@@ -14,6 +15,12 @@ interface SmtpConfig {
     user: string
     pass: string
   }
+}
+
+interface EmailResult {
+  email: string;
+  status: 'fulfilled' | 'rejected';
+  error?: string;
 }
 
 export default function EmailSendTool() {
@@ -33,6 +40,28 @@ export default function EmailSendTool() {
     message: string;
     details?: any[];
   } | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const [currentEmailIndex, setCurrentEmailIndex] = useState(0)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [emailResults, setEmailResults] = useState<EmailResult[]>([])
+  const [showResults, setShowResults] = useState(false)
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    
+    if (isProcessing && secondsLeft > 0) {
+      timer = setInterval(() => {
+        setSecondsLeft((prev) => Math.max(0, prev - 1))
+      }, 1000)
+    }
+
+    return () => {
+      if (timer) clearInterval(timer)
+    }
+  }, [isProcessing, secondsLeft])
 
   const handleAddContact = () => {
     // Implement add contact modal/form
@@ -63,40 +92,70 @@ export default function EmailSendTool() {
     setSmtpConfig(config)
   }
 
-  const handleSendEmails = async () => {
-    setIsSending(true)
-    setSendResult(null)
+  const sendEmails = async () => {
+    if (!contacts.length || !content || !subject) return
+    
+    setIsProcessing(true)
+    setCurrentEmailIndex(0)
+    const results: EmailResult[] = []
 
-    try {
-      const response = await fetch("/api/send-emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contacts,
-          subject,
-          sender,
-          content,
-          smtpConfig,
-        }),
-      })
+    for (let i = 0; i < contacts.length; i++) {
+      try {
+        // Send current email
+        const response = await fetch("/api/send-emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contacts: [contacts[i]],
+            subject,
+            sender,
+            content,
+            smtpConfig,
+          }),
+        })
 
-      const data = await response.json()
+        if (!response.ok) {
+          throw new Error('Failed to send email')
+        }
 
-      if (!response.ok) throw new Error(data.error || 'Failed to send emails')
-
-      setSendResult({
-        success: true,
-        message: data.message,
-        details: data.details
-      })
-    } catch (error) {
-      setSendResult({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to send emails'
-      })
-    } finally {
-      setIsSending(false)
+        results.push({
+          email: contacts[i].email,
+          status: 'fulfilled'
+        })
+        
+        setCurrentEmailIndex(i + 1)
+        
+        // If there are more emails to send, set up the 4-minute timer
+        if (i < contacts.length - 1) {
+          setIsPaused(true)
+          setSecondsLeft(240)
+          await new Promise<void>((resolve) => {
+            const checkTimer = setInterval(() => {
+              setSecondsLeft((prev) => {
+                if (prev <= 1) {
+                  clearInterval(checkTimer)
+                  setIsPaused(false)
+                  resolve()
+                  return 0
+                }
+                return prev - 1
+              })
+            }, 1000)
+          })
+        }
+      } catch (error) {
+        console.error("Failed to send email:", error)
+        results.push({
+          email: contacts[i].email,
+          status: 'rejected',
+          error: error instanceof Error ? error.message : 'Failed to send email'
+        })
+      }
     }
+
+    setEmailResults(results)
+    setIsProcessing(false)
+    setShowResults(true)
   }
 
   return (
@@ -112,8 +171,11 @@ export default function EmailSendTool() {
           <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
             Email Campaign Tool
           </h1>
-          <p className="mt-4 text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto">
+          <p className="mt-4 text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
             Create and send personalized email campaigns to your contacts with ease
+          </p>
+          <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent pt-4">
+            ✨ Integrate with any API marketing tool (Gmail, Mailjet, Brevo, AWS & more) ✨
           </p>
         </header>
 
@@ -213,8 +275,8 @@ export default function EmailSendTool() {
               
               {/* Send Button */}
               <button
-                onClick={handleSendEmails}
-                disabled={contacts.length === 0 || isSending}
+                onClick={sendEmails}
+                disabled={contacts.length === 0 || isProcessing}
                 className={`group w-full mt-6 py-4 px-6 rounded-xl font-medium text-lg transition-all duration-300 relative overflow-hidden
                   ${contacts.length === 0 
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600' 
@@ -258,7 +320,7 @@ export default function EmailSendTool() {
       </div>
 
       {/* Loading Overlay */}
-      {isSending && (
+      {isProcessing && (
         <div className="fixed inset-0 backdrop-blur-md bg-white/30 dark:bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-100 dark:border-gray-700">
             <div className="flex flex-col items-center space-y-6">
@@ -281,74 +343,84 @@ export default function EmailSendTool() {
         </div>
       )}
 
-      {/* Result Modal */}
-      {sendResult && (
+      {/* Campaign Results Modal */}
+      {showResults && (
         <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex flex-col items-center space-y-6">
-              {sendResult.success ? (
-                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center animate-[scale_0.5s_ease-out]">
-                  <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-              ) : (
-                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center animate-[scale_0.5s_ease-out]">
-                  <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-              )}
+              <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
               
-              <h3 className={`text-2xl font-bold ${
-                sendResult.success ? 'text-green-500' : 'text-red-500'
-              }`}>
-                {sendResult.success ? 'Campaign Sent!' : 'Sending Failed'}
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Campaign Complete
               </h3>
               
-              <p className="text-gray-600 text-center text-lg">
-                {sendResult.message}
-              </p>
-
-              {sendResult.details && (
-                <div className="w-full max-h-60 overflow-auto rounded-xl border border-gray-100 bg-gray-50">
-                  <div className="p-4 space-y-2">
-                    {sendResult.details.map((detail, index) => (
-                      <div 
-                        key={index}
-                        className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
-                          detail.status === 'fulfilled' 
-                            ? 'bg-green-50 text-green-700' 
-                            : 'bg-red-50 text-red-700'
-                        }`}
-                      >
-                        {detail.status === 'fulfilled' ? (
-                          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        )}
-                        <span className="font-medium">{detail.email}</span>
-                        {detail.error && (
-                          <span className="text-xs opacity-75">- {detail.error}</span>
-                        )}
-                      </div>
-                    ))}
+              <div className="flex gap-4 w-full justify-center">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-500">
+                    {emailResults.filter(r => r.status === 'fulfilled').length}
                   </div>
+                  <div className="text-sm text-gray-500">Successful</div>
                 </div>
-              )}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-500">
+                    {emailResults.filter(r => r.status === 'rejected').length}
+                  </div>
+                  <div className="text-sm text-gray-500">Failed</div>
+                </div>
+              </div>
+
+              <div className="w-full max-h-60 overflow-auto rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                <div className="p-4 space-y-2">
+                  {emailResults.map((result, index) => (
+                    <div 
+                      key={index}
+                      className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
+                        result.status === 'fulfilled' 
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                      }`}
+                    >
+                      {result.status === 'fulfilled' ? (
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                      <span className="font-medium">{result.email}</span>
+                      {result.error && (
+                        <span className="text-xs opacity-75">- {result.error}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <button
-                onClick={() => setSendResult(null)}
-                className="px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-medium transition-colors shadow-lg hover:shadow-xl"
+                onClick={() => setShowResults(false)}
+                className="px-8 py-3 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-lg hover:shadow-xl"
               >
                 Close
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {isProcessing && (
+        <div className="fixed bottom-8 right-8 z-50">
+          <TimerDisplay
+            totalEmails={contacts.length}
+            currentEmail={currentEmailIndex + 1}
+            isPaused={isPaused}
+            secondsLeft={secondsLeft}
+          />
         </div>
       )}
     </div>
