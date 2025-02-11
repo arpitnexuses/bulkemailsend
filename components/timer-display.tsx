@@ -7,14 +7,17 @@ interface TimerDisplayProps {
   currentEmail: number;
   isPaused: boolean;
   secondsLeft: number;
+  delay: number;
 }
 
-export function TimerDisplay({ totalEmails, currentEmail, isPaused, secondsLeft }: TimerDisplayProps) {
+export function TimerDisplay({ totalEmails, currentEmail, isPaused, secondsLeft, delay }: TimerDisplayProps) {
   const [timeString, setTimeString] = useState('00:00');
   
-  // Calculate total time needed (4 minutes per email)
-  const totalMinutesNeeded = Math.max(0, totalEmails - 1) * 4;
-  const formattedTotalTime = `${Math.floor(totalMinutesNeeded / 60)}h ${totalMinutesNeeded % 60}m`;
+  // Calculate total time needed based on delay value (in minutes)
+  const totalMinutesNeeded = Math.max(0, totalEmails - 1) * delay;
+  const formattedTotalTime = totalMinutesNeeded > 0 
+    ? `${Math.floor(totalMinutesNeeded / 60)}h ${totalMinutesNeeded % 60}m`
+    : 'No delay';
 
   useEffect(() => {
     const minutes = Math.floor(secondsLeft / 60);

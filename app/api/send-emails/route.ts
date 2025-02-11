@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 
-// Add delay between emails to avoid rate limiting
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+// Rename the delay function to sleep to avoid naming conflicts
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { contacts, subject, sender, content, smtpConfig } = body
+    const { contacts, subject, sender, content, smtpConfig, delay } = body
 
     // Create transporter with user-provided SMTP config
     const transporter = nodemailer.createTransport({
@@ -33,8 +33,9 @@ export async function POST(request: Request) {
 
     // Send emails to all contacts with delay between each
     const results = []
-    for (const contact of contacts) {
+    for (let i = 0; i < contacts.length; i++) {
       try {
+        const contact = contacts[i]
         // Replace template variables in content
         const personalizedContent = content
           .replace(/\{\{name\}\}/g, contact.name || '')
@@ -49,16 +50,24 @@ export async function POST(request: Request) {
         }
 
         const result = await transporter.sendMail(mailOptions)
-        results.push({ status: 'fulfilled', value: result })
+        results.push({ 
+          status: 'fulfilled', 
+          value: result,
+          email: contact.email 
+        })
         
-        // Add delay between emails
-        if (contacts.indexOf(contact) < contacts.length - 1) {
-          await delay(2000) // 2 second delay between emails
+        // Add configured delay between emails
+        if (i < contacts.length - 1) {
+          const delayMs = delay * 60 * 1000  // Convert minutes to milliseconds
+          if (delayMs > 0) {
+            await sleep(delayMs)
+          }
         }
       } catch (error) {
         results.push({ 
           status: 'rejected', 
-          reason: error instanceof Error ? error.message : 'Failed to send email' 
+          reason: error instanceof Error ? error.message : 'Failed to send email',
+          email: contacts[i].email
         })
       }
     }
@@ -67,11 +76,10 @@ export async function POST(request: Request) {
     const succeeded = results.filter(r => r.status === 'fulfilled').length
     const failed = results.filter(r => r.status === 'rejected').length
 
-    // Send summary
     return NextResponse.json({
       message: `Email sending complete. ${succeeded} succeeded, ${failed} failed.`,
-      details: results.map((result, index) => ({
-        email: contacts[index].email,
+      details: results.map((result) => ({
+        email: result.email,
         status: result.status,
         error: result.status === 'rejected' ? result.reason : null
       }))

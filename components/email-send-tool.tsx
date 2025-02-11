@@ -48,6 +48,7 @@ export default function EmailSendTool() {
   const [success, setSuccess] = useState<string | null>(null)
   const [emailResults, setEmailResults] = useState<EmailResult[]>([])
   const [showResults, setShowResults] = useState(false)
+  const [delay, setDelay] = useState(240)
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -97,65 +98,37 @@ export default function EmailSendTool() {
     
     setIsProcessing(true)
     setCurrentEmailIndex(0)
-    const results: EmailResult[] = []
+    
+    try {
+      const response = await fetch("/api/send-emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contacts,
+          subject,
+          sender,
+          content,
+          smtpConfig,
+          delay,
+        }),
+      })
 
-    for (let i = 0; i < contacts.length; i++) {
-      try {
-        // Send current email
-        const response = await fetch("/api/send-emails", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contacts: [contacts[i]],
-            subject,
-            sender,
-            content,
-            smtpConfig,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to send email')
-        }
-
-        results.push({
-          email: contacts[i].email,
-          status: 'fulfilled'
-        })
-        
-        setCurrentEmailIndex(i + 1)
-        
-        // If there are more emails to send, set up the 4-minute timer
-        if (i < contacts.length - 1) {
-          setIsPaused(true)
-          setSecondsLeft(240)
-          await new Promise<void>((resolve) => {
-            const checkTimer = setInterval(() => {
-              setSecondsLeft((prev) => {
-                if (prev <= 1) {
-                  clearInterval(checkTimer)
-                  setIsPaused(false)
-                  resolve()
-                  return 0
-                }
-                return prev - 1
-              })
-            }, 1000)
-          })
-        }
-      } catch (error) {
-        console.error("Failed to send email:", error)
-        results.push({
-          email: contacts[i].email,
-          status: 'rejected',
-          error: error instanceof Error ? error.message : 'Failed to send email'
-        })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to send emails')
       }
-    }
 
-    setEmailResults(results)
-    setIsProcessing(false)
-    setShowResults(true)
+      const data = await response.json()
+      setEmailResults(data.details)
+      setShowResults(true)
+      setSuccess(data.message)
+    } catch (error) {
+      console.error("Failed to send emails:", error)
+      setError(error instanceof Error ? error.message : 'Failed to send emails')
+    } finally {
+      setIsProcessing(false)
+      setCurrentEmailIndex(0)
+    }
   }
 
   return (
@@ -271,6 +244,8 @@ export default function EmailSendTool() {
                 setSender={setSender}
                 content={content}
                 setContent={setContent}
+                delay={delay}
+                setDelay={setDelay}
               />
               
               {/* Send Button */}
@@ -420,6 +395,7 @@ export default function EmailSendTool() {
             currentEmail={currentEmailIndex + 1}
             isPaused={isPaused}
             secondsLeft={secondsLeft}
+            delay={delay}
           />
         </div>
       )}

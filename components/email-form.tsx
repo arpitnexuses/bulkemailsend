@@ -27,16 +27,60 @@ interface EmailFormProps {
   setSender: (sender: string) => void
   content: string
   setContent: (content: string) => void
+  delay: number
+  setDelay: (delay: number) => void
 }
 
-export default function EmailForm({ subject, setSubject, sender, setSender, content, setContent }: EmailFormProps) {
+export default function EmailForm({ 
+  subject, 
+  setSubject, 
+  sender, 
+  setSender, 
+  content, 
+  setContent,
+  delay,
+  setDelay
+}: EmailFormProps) {
   const [showPreview, setShowPreview] = useState(false)
+
+  const handleDelayChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newDelay = parseInt(e.target.value, 10)
+    setDelay(newDelay)
+  }
+
+  const delayOptions = [
+    { value: 0, label: 'No delay' },
+    { value: 1, label: '1 minute' },
+    { value: 2, label: '2 minutes' },
+    { value: 3, label: '3 minutes' },
+    { value: 4, label: '4 minutes' },
+    { value: 5, label: '5 minutes' }
+  ]
 
   return (
     <div className="bg-white rounded-xl shadow-xl p-8 max-w-3xl mx-auto border border-gray-100">
-      <h2 className="text-3xl font-bold text-gray-800 mb-8 tracking-tight">
-        Compose Email
-      </h2>
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-3xl font-bold text-gray-800 tracking-tight">
+          Compose Email
+        </h2>
+        
+        <div className="flex items-center space-x-2">
+          <label className="text-sm font-medium text-gray-700">
+            Delay:
+          </label>
+          <select
+            value={delay}
+            onChange={handleDelayChange}
+            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:border-gray-300"
+          >
+            {delayOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
       
       <form className="space-y-6">
         <div>
