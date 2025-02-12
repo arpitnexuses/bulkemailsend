@@ -22,15 +22,32 @@ const AceEditor = dynamic(
 
 interface EmailFormProps {
   subject: string
-  setSubject: (subject: string) => void
+  setSubject: (value: string) => void
   sender: string
-  setSender: (sender: string) => void
+  setSender: (value: string) => void
   senderName: string
-  setSenderName: (name: string) => void
+  setSenderName: (value: string) => void
   content: string
-  setContent: (content: string) => void
+  setContent: (value: string) => void
   delay: number
-  setDelay: (delay: number) => void
+  setDelay: (value: number) => void
+}
+
+const delayOptions = [
+  { value: 0, label: 'No Delay' },
+  { value: 30, label: '30 seconds' },
+  { value: 60, label: '1 minute' },
+  { value: 300, label: '5 minutes' },
+  { value: 600, label: '10 minutes' },
+  { value: 1800, label: '30 minutes' },
+  { value: 3600, label: '1 hour' }
+]
+
+interface EmailFormData {
+  to: string;
+  subject: string;
+  message: string;
+  senderName: string;
 }
 
 export default function EmailForm({ 
@@ -52,13 +69,10 @@ export default function EmailForm({
     setDelay(newDelay)
   }
 
-  const delayOptions = [
-    { value: 1, label: '1 minute' },
-    { value: 2, label: '2 minutes' },
-    { value: 3, label: '3 minutes' },
-    { value: 4, label: '4 minutes' },
-    { value: 5, label: '5 minutes' }
-  ]
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle form submission
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-xl p-8 max-w-3xl mx-auto border border-gray-100">
@@ -85,7 +99,7 @@ export default function EmailForm({
         </div>
       </div>
       
-      <form className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Subject
@@ -109,6 +123,7 @@ export default function EmailForm({
             onChange={(e) => setSenderName(e.target.value)}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:border-gray-300"
             placeholder="John Doe"
+            required
           />
         </div>
 

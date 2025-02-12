@@ -1,42 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React from 'react';
 
 interface TimerDisplayProps {
-  totalEmails: number;
-  currentEmail: number;
-  isPaused: boolean;
-  secondsLeft: number;
-  delay: number;
+  seconds: number;
 }
 
-export function TimerDisplay({ totalEmails, currentEmail, isPaused, secondsLeft, delay }: TimerDisplayProps) {
-  const [timeString, setTimeString] = useState('00:00');
-  
-  // Calculate total time needed based on delay value (in minutes)
-  const totalMinutesNeeded = Math.max(0, totalEmails - 1) * delay;
-  const formattedTotalTime = totalMinutesNeeded > 0 
-    ? `${Math.floor(totalMinutesNeeded / 60)}h ${totalMinutesNeeded % 60}m`
-    : 'No delay';
+const TimerDisplay: React.FC<TimerDisplayProps> = ({ seconds }) => {
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const remainingSeconds = totalSeconds % 60;
 
-  useEffect(() => {
-    const minutes = Math.floor(secondsLeft / 60);
-    const seconds = secondsLeft % 60;
-    setTimeString(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-  }, [secondsLeft]);
+    const pad = (num: number) => num.toString().padStart(2, '0');
+
+    if (hours > 0) {
+      return `${hours}:${pad(minutes)}:${pad(remainingSeconds)}`;
+    }
+    return `${pad(minutes)}:${pad(remainingSeconds)}`;
+  };
 
   return (
-    <div className="flex flex-col items-center space-y-2 p-4 rounded-lg border bg-card text-card-foreground shadow">
-      <div className="text-2xl font-bold font-mono">{timeString}</div>
-      <div className="text-sm text-muted-foreground">
-        Email {currentEmail} of {totalEmails}
-      </div>
-      <div className="text-sm text-muted-foreground">
-        Total time needed: {formattedTotalTime}
-      </div>
-      <div className="text-sm">
-        {isPaused ? "Cooling down..." : "Sending..."}
-      </div>
+    <div className="text-center p-2 bg-blue-100 rounded-md mb-4">
+      <p className="text-lg font-semibold">Time remaining:</p>
+      <p className="text-2xl font-bold text-blue-600">{formatTime(seconds)}</p>
     </div>
   );
-} 
+};
+
+export default TimerDisplay; 

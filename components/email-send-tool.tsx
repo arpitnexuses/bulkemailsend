@@ -5,7 +5,7 @@ import EmailForm from "./email-form"
 import ContactList from "./contact-list"
 import ContactUpload from "./contact-upload"
 import type { Contact } from "@/types/contact"
-import { TimerDisplay } from "./timer-display"
+import TimerDisplay from "./timer-display"
 
 interface SmtpConfig {
   host: string
@@ -48,7 +48,8 @@ export default function EmailSendTool() {
   const [success, setSuccess] = useState<string | null>(null)
   const [emailResults, setEmailResults] = useState<EmailResult[]>([])
   const [showResults, setShowResults] = useState(false)
-  const [delay, setDelay] = useState(240)
+  const [delay, setDelay] = useState<number>(0)
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [senderName, setSenderName] = useState('')
 
   useEffect(() => {
@@ -64,6 +65,20 @@ export default function EmailSendTool() {
       if (timer) clearInterval(timer)
     }
   }, [isProcessing, secondsLeft])
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (timeRemaining !== null && timeRemaining > 0) {
+      timer = setInterval(() => {
+        setTimeRemaining(prev => prev !== null ? prev - 1 : null);
+      }, 1000);
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [timeRemaining]);
 
   const handleAddContact = () => {
     // Implement add contact modal/form
@@ -94,11 +109,16 @@ export default function EmailSendTool() {
     setSmtpConfig(config)
   }
 
-  const sendEmails = async () => {
+  const handleSendEmails = async () => {
     if (!contacts.length || !content || !subject) return
     
     setIsProcessing(true)
     setCurrentEmailIndex(0)
+    
+    // Set the initial time remaining if there's a delay
+    if (delay > 0) {
+      setTimeRemaining(delay);
+    }
     
     try {
       const response = await fetch("/api/send-emails", {
@@ -108,6 +128,7 @@ export default function EmailSendTool() {
           contacts,
           subject,
           sender,
+          senderName,
           content,
           smtpConfig,
           delay,
@@ -129,6 +150,7 @@ export default function EmailSendTool() {
     } finally {
       setIsProcessing(false)
       setCurrentEmailIndex(0)
+      setTimeRemaining(null) // Reset the timer when done
     }
   }
 
@@ -253,7 +275,7 @@ export default function EmailSendTool() {
               
               {/* Send Button */}
               <button
-                onClick={sendEmails}
+                onClick={handleSendEmails}
                 disabled={contacts.length === 0 || isProcessing}
                 className={`group w-full mt-6 py-4 px-6 rounded-xl font-medium text-lg transition-all duration-300 relative overflow-hidden
                   ${contacts.length === 0 
@@ -393,13 +415,7 @@ export default function EmailSendTool() {
 
       {isProcessing && (
         <div className="fixed bottom-8 right-8 z-50">
-          <TimerDisplay
-            totalEmails={contacts.length}
-            currentEmail={currentEmailIndex + 1}
-            isPaused={isPaused}
-            secondsLeft={secondsLeft}
-            delay={delay}
-          />
+          <TimerDisplay seconds={timeRemaining || 0} />
         </div>
       )}
     </div>
