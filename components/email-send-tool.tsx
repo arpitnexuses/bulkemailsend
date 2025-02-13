@@ -6,6 +6,7 @@ import ContactList from "./contact-list"
 import ContactUpload from "./contact-upload"
 import type { Contact } from "@/types/contact"
 import TimerDisplay from "./timer-display"
+import SmtpConfig from "./smtp-config"
 
 interface SmtpConfig {
   host: string
@@ -109,6 +110,15 @@ export default function EmailSendTool() {
     setSmtpConfig(config)
   }
 
+  const handleSmtpReset = () => {
+    setSmtpConfig({
+      host: "",
+      port: 587,
+      secure: false,
+      auth: { user: "", pass: "" }
+    })
+  }
+
   const handleSendEmails = async () => {
     if (!contacts.length || !content || !subject) return
     
@@ -127,10 +137,18 @@ export default function EmailSendTool() {
         body: JSON.stringify({
           contacts,
           subject,
-          sender,
-          senderName,
+          sender: {
+            email: sender,
+            name: senderName || sender // Use senderName if available, fallback to email
+          },
           content,
-          smtpConfig,
+          smtpConfig: {
+            ...smtpConfig,
+            // Ensure these settings for Mailjet
+            host: 'in-v3.mailjet.com',
+            port: 587,
+            secure: false,
+          },
           delay,
         }),
       })
@@ -150,7 +168,25 @@ export default function EmailSendTool() {
     } finally {
       setIsProcessing(false)
       setCurrentEmailIndex(0)
-      setTimeRemaining(null) // Reset the timer when done
+      setTimeRemaining(null)
+    }
+  }
+
+  const handleContactReset = () => {
+    if (contacts.length === 0) return; // Don't show confirmation if no contacts
+    
+    if (window.confirm('Are you sure you want to clear all contacts? This action cannot be undone.')) {
+      setContacts([]);
+      setEmailResults([]); // Clear email results
+      setShowResults(false); // Hide results modal
+      setError(null); // Clear any error messages
+      setSuccess(null); // Clear any success messages
+      
+      // Reset the file input by finding it and resetting its value
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
     }
   }
 
@@ -178,87 +214,63 @@ export default function EmailSendTool() {
         <main className="container mx-auto px-4 max-w-7xl pb-16 space-y-8">
           {/* SMTP Settings - Full Width */}
           <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg shadow-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">SMTP Settings</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Configure your email server</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSmtpReset}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                title="Reset SMTP configuration"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">SMTP Settings</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Configure your email server</p>
-              </div>
+              </button>
             </div>
             {/* SMTP Form */}
-            <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={(e) => e.preventDefault()}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  SMTP Host
-                </label>
-                <input
-                  type="text"
-                  value={smtpConfig.host}
-                  onChange={(e) => setSmtpConfig({...smtpConfig, host: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="smtp.example.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Port
-                </label>
-                <input
-                  type="number"
-                  value={smtpConfig.port}
-                  onChange={(e) => setSmtpConfig({...smtpConfig, port: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={smtpConfig.auth.user}
-                  onChange={(e) => setSmtpConfig({
-                    ...smtpConfig, 
-                    auth: {...smtpConfig.auth, user: e.target.value}
-                  })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={smtpConfig.auth.pass}
-                  onChange={(e) => setSmtpConfig({
-                    ...smtpConfig, 
-                    auth: {...smtpConfig.auth, pass: e.target.value}
-                  })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </form>
+            <SmtpConfig config={smtpConfig} setConfig={setSmtpConfig} />
           </div>
 
           {/* Two Column Layout for Email Composer and Contacts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Email Composer - Left Column */}
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-lg">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Compose Email</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Create your campaign</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSubject("");
+                    setSender("");
+                    setSenderName("");
+                    setContent("");
+                    setDelay(0);
+                  }}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  title="Reset email form"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Compose Email</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Create your campaign</p>
-                </div>
+                </button>
               </div>
               <EmailForm
                 subject={subject}
@@ -294,16 +306,32 @@ export default function EmailSendTool() {
 
             {/* Contact Upload & List - Right Column */}
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-gradient-to-br from-green-500 to-teal-500 rounded-lg shadow-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-gradient-to-br from-green-500 to-teal-500 rounded-lg shadow-lg">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contacts</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Upload and manage recipients</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleContactReset}
+                  disabled={contacts.length === 0}
+                  className={`p-2 rounded-full transition-colors duration-200 ${
+                    contacts.length === 0 
+                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                  title="Clear all contacts"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contacts</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Upload and manage recipients</p>
-                </div>
+                </button>
               </div>
               <ContactUpload onUpload={handleContactUpload} />
               <div className="mt-6">

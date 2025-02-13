@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       try {
         if (delay > 0 && results.length > 0) {
           // Only delay between emails, not before the first one
-          await new Promise(resolve => setTimeout(resolve, delay * 1000))
+          await sleep(delay * 1000)
         }
 
         // Replace template variables in content
@@ -53,7 +53,10 @@ export async function POST(request: Request) {
           .replace(/\{\{company\}\}/g, contact.company || '')
 
         const mailOptions = {
-          from: `"${senderName}" <${smtpConfig.auth.user}>`,
+          from: {
+            name: sender.name,
+            address: sender.email  // Must be verified in Mailjet
+          },
           to: contact.email,
           subject: subject,
           html: personalizedContent,
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
           value: result
         })
       } catch (error) {
+        console.error('Error sending to', contact.email, ':', error)
         results.push({
           email: contact.email,
           status: 'rejected',

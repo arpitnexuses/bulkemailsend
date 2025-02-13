@@ -74,6 +74,15 @@ export default function EmailForm({
     // Handle form submission
   };
 
+  const handleReset = () => {
+    setSubject('')
+    setSender('')
+    setSenderName('')
+    setContent('')
+    setDelay(0)
+    setShowPreview(false)
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-xl p-8 max-w-3xl mx-auto border border-gray-100">
       <div className="flex justify-between items-center mb-8">
@@ -81,21 +90,24 @@ export default function EmailForm({
           Compose Email
         </h2>
         
-        <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium text-gray-700">
-            Delay:
-          </label>
-          <select
-            value={delay}
-            onChange={handleDelayChange}
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:border-gray-300"
-          >
-            {delayOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">
+              Delay:
+            </label>
+            <select
+              value={delay}
+              onChange={handleDelayChange}
+              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:border-gray-300"
+            >
+              {delayOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+         
         </div>
       </div>
       

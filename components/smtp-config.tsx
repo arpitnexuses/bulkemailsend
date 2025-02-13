@@ -16,12 +16,26 @@ export default function SmtpConfig({ config, setConfig }: SmtpConfigProps) {
     })
   }
 
+  const handleReset = () => {
+    setConfig({
+      host: 'in-v3.mailjet.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: 'YOUR_API_KEY',
+        pass: 'YOUR_SECRET_KEY'
+      }
+    })
+  }
+
   return (
     <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">SMTP Configuration</h2>
-        <div className="rounded-full bg-blue-50 px-3 py-1 dark:bg-blue-900/30">
-          <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Server Settings</span>
+        <div className="flex items-center space-x-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">SMTP Configuration</h2>
+          <div className="rounded-full bg-blue-50 px-3 py-1 dark:bg-blue-900/30">
+            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Server Settings</span>
+          </div>
         </div>
       </div>
       
@@ -87,7 +101,7 @@ export default function SmtpConfig({ config, setConfig }: SmtpConfigProps) {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center">
+      <div className="mt-6 flex items-center justify-between">
         <label className="relative inline-flex cursor-pointer items-center">
           <input
             type="checkbox"

@@ -62,9 +62,18 @@ export default function ContactUpload({ onUpload }: ContactUploadProps) {
     }
   }
 
+  const handleReset = () => {
+    setFile(null)
+    setError(null)
+    setSuccess(null)
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Contacts</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Upload Contacts</h2>
+        
+      </div>
       
       <div className="relative group">
         <div className={`
