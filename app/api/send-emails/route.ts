@@ -41,16 +41,18 @@ export async function POST(req: Request) {
 
     // Process contacts in chunks of 10
     const chunkSize = 10;
+    let succeeded = 0;
+    let failed = 0;
+
     for (let i = 0; i < contacts.length; i += chunkSize) {
       const chunk = contacts.slice(i, i + chunkSize);
       
       for (const contact of chunk) {
         try {
-          if (delay > 0 && results.length > 0) {
+          if (delay > 0 && (succeeded + failed) > 0) {
             await sleep(delay * 1000)
           }
 
-          // Replace template variables in content
           const personalizedContent = content
             .replace(/\{\{name\}\}/g, contact.name || '')
             .replace(/\{\{email\}\}/g, contact.email || '')
@@ -66,19 +68,11 @@ export async function POST(req: Request) {
             html: personalizedContent,
           }
 
-          const result = await transporter.sendMail(mailOptions)
-          results.push({
-            email: contact.email,
-            status: 'fulfilled',
-            value: result
-          })
+          await transporter.sendMail(mailOptions)
+          succeeded++
         } catch (error) {
           console.error('Error sending to', contact.email, ':', error)
-          results.push({
-            email: contact.email,
-            status: 'rejected',
-            error: error instanceof Error ? error.message : 'Failed to send email'
-          })
+          failed++
         }
       }
 
@@ -88,13 +82,11 @@ export async function POST(req: Request) {
       }
     }
 
-    // Process results
-    const succeeded = results.filter(r => r.status === 'fulfilled').length
-    const failed = results.filter(r => r.status === 'rejected').length
-
     return NextResponse.json({
       message: `Email sending complete. ${succeeded} succeeded, ${failed} failed.`,
-      details: results
+      succeeded,
+      failed,
+      total: contacts.length
     })
   } catch (error) {
     console.error('Email sending error:', error)
