@@ -144,14 +144,21 @@ export default function EmailSendTool() {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to send emails')
+      let data;
+      try {
+        data = await response.json()
+      } catch (e) {
+        throw new Error('Failed to parse server response')
       }
 
-      const data = await response.json()
-      
-      // Success toast - redesigned
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send emails')
+      }
+
+      // Success toast - redesigned with null check and error handling
+      const successCount = data.succeeded || 0;
+      const failureCount = data.failed || 0;
+
       toast.success(
         <div className="min-w-[300px] relative pr-6">
           <button 
@@ -164,11 +171,11 @@ export default function EmailSendTool() {
           </button>
           <h3 className="font-semibold text-gray-900 mb-1">Campaign Sent Successfully!</h3>
           <p className="text-sm text-gray-600">
-            {`${data.details.filter((r: EmailResult) => r.status === 'fulfilled').length} emails sent, ${data.details.filter((r: EmailResult) => r.status === 'rejected').length} failed`}
+            {`${successCount} emails sent, ${failureCount} failed`}
           </p>
         </div>,
         {
-          duration: Infinity, // Won't auto-dismiss
+          duration: Infinity,
           position: 'top-right',
           style: {
             background: 'rgba(255, 255, 255, 0.95)',
@@ -183,9 +190,6 @@ export default function EmailSendTool() {
       )
 
       // Save campaign history
-      const successCount = data.details.filter((r: EmailResult) => r.status === 'fulfilled').length
-      const failureCount = data.details.filter((r: EmailResult) => r.status === 'rejected').length
-      
       await fetch('/api/campaign-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,15 +198,14 @@ export default function EmailSendTool() {
           campaignName: subject,
           emailsSent: successCount,
           emailsFailed: failureCount,
-          status: failureCount === 0 ? 'success' : 'failed',
-          details: JSON.stringify(data.details),
+          status: failureCount === 0 ? 'success' : 'partial',
+          details: JSON.stringify(data.details || []),
           timestamp: new Date().toISOString()
         })
       })
 
     } catch (error) {
       console.error("Failed to send emails:", error)
-      // Error toast - redesigned
       toast.error(
         <div className="min-w-[300px] relative pr-6">
           <button 
@@ -219,7 +222,7 @@ export default function EmailSendTool() {
           </p>
         </div>,
         {
-          duration: Infinity, // Won't auto-dismiss
+          duration: Infinity,
           position: 'top-right',
           style: {
             background: 'rgba(255, 255, 255, 0.95)',
