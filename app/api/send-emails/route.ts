@@ -13,11 +13,18 @@ interface EmailResult {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export async function POST(req: Request) {
+  // Set response headers immediately
+  const headers = {
+    'Content-Type': 'application/json',
+    'Connection': 'keep-alive',
+    'Keep-Alive': 'timeout=60'
+  };
+
   try {
     const { contacts, subject, sender, content, smtpConfig, delay, senderName } = await req.json()
-    const results: EmailResult[] = []
+    let succeeded = 0;
+    let failed = 0;
 
-    // Create transporter with user-provided SMTP config
     const transporter = nodemailer.createTransport({
       host: smtpConfig.host,
       port: smtpConfig.port,
@@ -26,24 +33,30 @@ export async function POST(req: Request) {
         user: smtpConfig.auth.user,
         pass: smtpConfig.auth.pass,
       },
+      // Add timeout settings
+      tls: {
+        rejectUnauthorized: false
+      },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: Infinity,
+      rateDelta: 1000,
+      rateLimit: 5
     })
 
-    // Verify SMTP connection
     try {
       await transporter.verify()
     } catch (error) {
-      console.error('SMTP Verification failed:', error)
-      return NextResponse.json(
-        { error: 'SMTP configuration is invalid. Please check your settings.' },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ 
+          error: 'SMTP configuration is invalid. Please check your settings.' 
+        }), 
+        { status: 400, headers }
       )
     }
 
-    // Process contacts in chunks of 10
-    const chunkSize = 10;
-    let succeeded = 0;
-    let failed = 0;
-
+    const chunkSize = 5; // Reduced chunk size
+    
     for (let i = 0; i < contacts.length; i += chunkSize) {
       const chunk = contacts.slice(i, i + chunkSize);
       
@@ -76,26 +89,31 @@ export async function POST(req: Request) {
         }
       }
 
-      // Add small delay between chunks
       if (i + chunkSize < contacts.length) {
-        await sleep(1000)
+        await sleep(1500) // Increased delay between chunks
       }
     }
 
-    return NextResponse.json({
-      message: `Email sending complete. ${succeeded} succeeded, ${failed} failed.`,
-      succeeded,
-      failed,
-      total: contacts.length
-    })
+    // Close the connection pool
+    transporter.close();
+
+    return new Response(
+      JSON.stringify({
+        message: `Email sending complete. ${succeeded} succeeded, ${failed} failed.`,
+        succeeded,
+        failed,
+        total: contacts.length
+      }),
+      { status: 200, headers }
+    )
   } catch (error) {
     console.error('Email sending error:', error)
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         error: 'Failed to send emails',
         details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+      }),
+      { status: 500, headers }
     )
   }
 }
