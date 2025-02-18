@@ -7,6 +7,8 @@ import ContactUpload from "./contact-upload"
 import type { Contact } from "@/types/contact"
 import TimerDisplay from "./timer-display"
 import SmtpConfig from "./smtp-config"
+import Header from "./Header"
+import { toast } from "react-hot-toast"
 
 interface SmtpConfig {
   host: string
@@ -41,45 +43,48 @@ export default function EmailSendTool() {
     message: string;
     details?: any[];
   } | null>(null)
-  const [secondsLeft, setSecondsLeft] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
   const [currentEmailIndex, setCurrentEmailIndex] = useState(0)
-  const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [emailResults, setEmailResults] = useState<EmailResult[]>([])
   const [showResults, setShowResults] = useState(false)
   const [delay, setDelay] = useState<number>(0)
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [senderName, setSenderName] = useState('')
 
   useEffect(() => {
-    let timer: NodeJS.Timeout
-    
-    if (isProcessing && secondsLeft > 0) {
-      timer = setInterval(() => {
-        setSecondsLeft((prev) => Math.max(0, prev - 1))
-      }, 1000)
+    const showToast = async () => {
+      if (isSending) {
+        toast.loading(
+          <div className="min-w-[300px] relative pr-6">
+            <div className="flex items-center gap-3">
+              <div className="animate-pulse">
+                <div className="h-8 w-8 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Sending Campaign</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Preparing to send your emails...
+                </p>
+              </div>
+            </div>
+          </div>,
+          {
+            duration: 2000,
+            style: {
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(209, 213, 219, 0.3)',
+              padding: '1rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              borderRadius: '0.75rem',
+              borderLeft: '4px solid #8b5cf6',
+            },
+          }
+        )
+      }
     }
-
-    return () => {
-      if (timer) clearInterval(timer)
-    }
-  }, [isProcessing, secondsLeft])
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    
-    if (timeRemaining !== null && timeRemaining > 0) {
-      timer = setInterval(() => {
-        setTimeRemaining(prev => prev !== null ? prev - 1 : null);
-      }, 1000);
-    }
-
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [timeRemaining]);
+    showToast()
+  }, [isSending])
 
   const handleAddContact = () => {
     // Implement add contact modal/form
@@ -122,14 +127,8 @@ export default function EmailSendTool() {
   const handleSendEmails = async () => {
     if (!contacts.length || !content || !subject) return
     
-    setIsProcessing(true)
-    setCurrentEmailIndex(0)
-    
-    // Set the initial time remaining if there's a delay
-    if (delay > 0) {
-      setTimeRemaining(delay);
-    }
-    
+    setIsSending(true)
+
     try {
       const response = await fetch("/api/send-emails", {
         method: "POST",
@@ -139,12 +138,11 @@ export default function EmailSendTool() {
           subject,
           sender: {
             email: sender,
-            name: senderName || sender // Use senderName if available, fallback to email
+            name: senderName || sender
           },
           content,
           smtpConfig: {
             ...smtpConfig,
-            // Ensure these settings for Mailjet
             host: 'in-v3.mailjet.com',
             port: 587,
             secure: false,
@@ -159,16 +157,90 @@ export default function EmailSendTool() {
       }
 
       const data = await response.json()
-      setEmailResults(data.details)
-      setShowResults(true)
-      setSuccess(data.message)
+      
+      // Success toast - redesigned
+      toast.success(
+        <div className="min-w-[300px] relative pr-6">
+          <button 
+            onClick={() => toast.dismiss()} 
+            className="absolute right-0 top-0 p-1 pr-2text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <h3 className="font-semibold text-gray-900 mb-1">Campaign Sent Successfully!</h3>
+          <p className="text-sm text-gray-600">
+            {`${data.details.filter((r: EmailResult) => r.status === 'fulfilled').length} emails sent, ${data.details.filter((r: EmailResult) => r.status === 'rejected').length} failed`}
+          </p>
+        </div>,
+        {
+          duration: Infinity, // Won't auto-dismiss
+          position: 'top-right',
+          style: {
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(209, 213, 219, 0.3)',
+            padding: '1rem',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            borderRadius: '0.75rem',
+            borderLeft: '4px solid #22c55e',
+          },
+        }
+      )
+
+      // Save campaign history
+      const successCount = data.details.filter((r: EmailResult) => r.status === 'fulfilled').length
+      const failureCount = data.details.filter((r: EmailResult) => r.status === 'rejected').length
+      
+      await fetch('/api/campaign-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderEmail: sender,
+          campaignName: subject,
+          emailsSent: successCount,
+          emailsFailed: failureCount,
+          status: failureCount === 0 ? 'success' : 'failed',
+          details: JSON.stringify(data.details),
+          timestamp: new Date().toISOString()
+        })
+      })
+
     } catch (error) {
       console.error("Failed to send emails:", error)
-      setError(error instanceof Error ? error.message : 'Failed to send emails')
+      // Error toast - redesigned
+      toast.error(
+        <div className="min-w-[300px] relative pr-6">
+          <button 
+            onClick={() => toast.dismiss()} 
+            className="absolute right-0 top-0 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <h3 className="font-semibold text-gray-900 mb-1">Campaign Failed</h3>
+          <p className="text-sm text-gray-600">
+            {error instanceof Error ? error.message : 'Failed to send emails'}
+          </p>
+        </div>,
+        {
+          duration: Infinity, // Won't auto-dismiss
+          position: 'top-right',
+          style: {
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(209, 213, 219, 0.3)',
+            padding: '1rem',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            borderRadius: '0.75rem',
+            borderLeft: '4px solid #ef4444',
+          },
+        }
+      )
     } finally {
-      setIsProcessing(false)
-      setCurrentEmailIndex(0)
-      setTimeRemaining(null)
+      setIsSending(false)
     }
   }
 
@@ -191,262 +263,166 @@ export default function EmailSendTool() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900">
-      {/* Decorative background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 blur-3xl" />
-      </div>
+    <>
+      <time dateTime="2016-10-25" suppressHydrationWarning />
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900">
+        
+        {/* Decorative background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-pink-500/20 blur-3xl" />
+        </div>
+        <Header />
+        <div className="relative">
+          {/* Header */}
+          <header className="py-12 text-center pt-[-4]">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Email Campaign Tool
+            </h1>
+            <p className="mt-4 text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
+              Create and send personalized email campaigns to your contacts with ease
+            </p>
+            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent pt-4">
+              ✨ Integrate with any API marketing tool (Gmail, Mailjet, Brevo, AWS & more) ✨
+            </p>
+          </header>
 
-      <div className="relative">
-        {/* Header */}
-        <header className="py-12 text-center">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Email Campaign Tool
-          </h1>
-          <p className="mt-4 text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
-            Create and send personalized email campaigns to your contacts with ease
-          </p>
-          <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent pt-4">
-            ✨ Integrate with any API marketing tool (Gmail, Mailjet, Brevo, AWS & more) ✨
-          </p>
-        </header>
-
-        <main className="container mx-auto px-4 max-w-7xl pb-16 space-y-8">
-          {/* SMTP Settings - Full Width */}
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
-            <div className="flex items-center justify-between gap-3 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg shadow-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">SMTP Settings</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Configure your email server</p>
-                </div>
-              </div>
-              <button
-                onClick={handleSmtpReset}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                title="Reset SMTP configuration"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-            </div>
-            {/* SMTP Form */}
-            <SmtpConfig config={smtpConfig} setConfig={setSmtpConfig} />
-          </div>
-
-          {/* Two Column Layout for Email Composer and Contacts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Email Composer - Left Column */}
+          <main className="container mx-auto px-4 max-w-7xl pb-16 space-y-8">
+            {/* SMTP Settings - Full Width */}
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
               <div className="flex items-center justify-between gap-3 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-lg">
+                  <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg shadow-lg">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     </svg>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Compose Email</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Create your campaign</p>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">SMTP Settings</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Configure your email server</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    setSubject("");
-                    setSender("");
-                    setSenderName("");
-                    setContent("");
-                    setDelay(0);
-                  }}
+                  onClick={handleSmtpReset}
                   className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  title="Reset email form"
+                  title="Reset SMTP configuration"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </button>
               </div>
-              <EmailForm
-                subject={subject}
-                setSubject={setSubject}
-                sender={sender}
-                setSender={setSender}
-                senderName={senderName}
-                setSenderName={setSenderName}
-                content={content}
-                setContent={setContent}
-                delay={delay}
-                setDelay={setDelay}
-              />
-              
-              {/* Send Button */}
-              <button
-                onClick={handleSendEmails}
-                disabled={contacts.length === 0 || isProcessing}
-                className={`group w-full mt-6 py-4 px-6 rounded-xl font-medium text-lg transition-all duration-300 relative overflow-hidden
-                  ${contacts.length === 0 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600' 
-                    : 'bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 hover:scale-[1.02] text-white shadow-lg hover:shadow-xl'
-                  }`}
-              >
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  Send to {contacts.length} Recipients
-                </span>
-              </button>
+              {/* SMTP Form */}
+              <SmtpConfig config={smtpConfig} setConfig={setSmtpConfig} />
             </div>
 
-            {/* Contact Upload & List - Right Column */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
-              <div className="flex items-center justify-between gap-3 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-gradient-to-br from-green-500 to-teal-500 rounded-lg shadow-lg">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            {/* Two Column Layout for Email Composer and Contacts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Email Composer - Left Column */}
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
+                <div className="flex items-center justify-between gap-3 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-lg">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Compose Email</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Create your campaign</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSubject("");
+                      setSender("");
+                      setSenderName("");
+                      setContent("");
+                      setDelay(0);
+                    }}
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    title="Reset email form"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contacts</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Upload and manage recipients</p>
-                  </div>
+                  </button>
                 </div>
+                <EmailForm
+                  subject={subject}
+                  setSubject={setSubject}
+                  sender={sender}
+                  setSender={setSender}
+                  senderName={senderName}
+                  setSenderName={setSenderName}
+                  content={content}
+                  setContent={setContent}
+                  delay={delay}
+                  setDelay={setDelay}
+                />
+                
+                {/* Send Button */}
                 <button
-                  onClick={handleContactReset}
+                  onClick={handleSendEmails}
                   disabled={contacts.length === 0}
-                  className={`p-2 rounded-full transition-colors duration-200 ${
-                    contacts.length === 0 
-                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-                  title="Clear all contacts"
+                  className={`group w-full mt-6 py-4 px-6 rounded-xl font-medium text-lg transition-all duration-300 relative overflow-hidden
+                    ${contacts.length === 0 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600' 
+                      : 'bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 hover:scale-[1.02] text-white shadow-lg hover:shadow-xl'
+                    }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <span className="relative z-10 flex items-center justify-center gap-3">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    Send to {contacts.length} Recipients
+                  </span>
                 </button>
               </div>
-              <ContactUpload onUpload={handleContactUpload} />
-              <div className="mt-6">
-                <ContactList
-                  contacts={contacts}
-                  onAddNew={handleAddContact}
-                  onEdit={handleEditContact}
-                  onDelete={handleDeleteContact}
-                />
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
 
-      {/* Loading Overlay */}
-      {isProcessing && (
-        <div className="fixed inset-0 backdrop-blur-md bg-white/30 dark:bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-100 dark:border-gray-700">
-            <div className="flex flex-col items-center space-y-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full animate-pulse opacity-20" />
-                <div className="relative w-24 h-24">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full animate-spin" style={{ clipPath: 'inset(0 0 50% 0)' }} />
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full animate-spin" style={{ clipPath: 'inset(50% 0 0 0)', animationDirection: 'reverse' }} />
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Sending Campaign</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-center">
-                Sending your emails to {contacts.length} recipients...
-              </p>
-              <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-purple-600 to-blue-600 animate-progress" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Campaign Results Modal */}
-      {showResults && (
-        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
-            <div className="flex flex-col items-center space-y-6">
-              <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
-                <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Campaign Complete
-              </h3>
-              
-              <div className="flex gap-4 w-full justify-center">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-500">
-                    {emailResults.filter(r => r.status === 'fulfilled').length}
-                  </div>
-                  <div className="text-sm text-gray-500">Successful</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-500">
-                    {emailResults.filter(r => r.status === 'rejected').length}
-                  </div>
-                  <div className="text-sm text-gray-500">Failed</div>
-                </div>
-              </div>
-
-              <div className={`w-full ${emailResults.length > 10 ? 'max-h-60 overflow-y-auto' : ''} rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900`}>
-                <div className="p-4 space-y-2">
-                  {emailResults.map((result, index) => (
-                    <div 
-                      key={index}
-                      className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
-                        result.status === 'fulfilled' 
-                          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
-                          : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-                      }`}
-                    >
-                      {result.status === 'fulfilled' ? (
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      )}
-                      <span className="font-medium">{result.email}</span>
-                      {result.error && (
-                        <span className="text-xs opacity-75">- {result.error}</span>
-                      )}
+              {/* Contact Upload & List - Right Column */}
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
+                <div className="flex items-center justify-between gap-3 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gradient-to-br from-green-500 to-teal-500 rounded-lg shadow-lg">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
                     </div>
-                  ))}
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contacts</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Upload and manage recipients</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleContactReset}
+                    disabled={contacts.length === 0}
+                    className={`p-2 rounded-full transition-colors duration-200 ${
+                      contacts.length === 0 
+                        ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    }`}
+                    title="Clear all contacts"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+                <ContactUpload onUpload={handleContactUpload} />
+                <div className="mt-6">
+                  <ContactList
+                    contacts={contacts}
+                    onAddNew={handleAddContact}
+                    onEdit={handleEditContact}
+                    onDelete={handleDeleteContact}
+                  />
                 </div>
               </div>
-
-              <button
-                onClick={() => setShowResults(false)}
-                className="px-8 py-3 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-lg hover:shadow-xl"
-              >
-                Close
-              </button>
             </div>
-          </div>
+          </main>
         </div>
-      )}
-
-      {isProcessing && (
-        <div className="fixed bottom-8 right-8 z-50">
-          <TimerDisplay seconds={timeRemaining || 0} />
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   )
 }
 
