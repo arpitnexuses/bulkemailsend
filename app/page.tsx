@@ -11,8 +11,10 @@ export default function Home() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <EmailSendTool />
+    <div className="container mx-auto px-4 py-8 dark:bg-gray-900">
+      <div className="border dark:border-gray-700 rounded-lg p-6 shadow-sm dark:shadow-gray-800">
+        <EmailSendTool />
+      </div>
     </div>
   );
 }

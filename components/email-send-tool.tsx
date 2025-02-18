@@ -55,18 +55,11 @@ export default function EmailSendTool() {
     const showToast = async () => {
       if (isSending) {
         toast.loading(
-          <div className="min-w-[300px] relative pr-6">
-            <div className="flex items-center gap-3">
-              <div className="animate-pulse">
-                <div className="h-8 w-8 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Sending Campaign</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Preparing to send your emails...
-                </p>
-              </div>
-            </div>
+          <div className="min-w-[200px]">
+            <h3 className="font-semibold text-gray-900 dark:text-white">Sending Campaign</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Preparing to send your emails...
+            </p>
           </div>,
           {
             duration: 2000,
@@ -75,7 +68,7 @@ export default function EmailSendTool() {
               backdropFilter: 'blur(8px)',
               border: '1px solid rgba(209, 213, 219, 0.3)',
               padding: '1rem',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
               borderRadius: '0.75rem',
               borderLeft: '4px solid #8b5cf6',
             },
