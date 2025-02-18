@@ -12,9 +12,9 @@ interface EmailResult {
 // Rename the delay function to sleep to avoid naming conflicts
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const { contacts, subject, sender, content, smtpConfig, delay, senderName } = await request.json()
+    const { contacts, subject, sender, content, smtpConfig, delay, senderName } = await req.json()
     const results: EmailResult[] = []
 
     // Create transporter with user-provided SMTP config
@@ -39,42 +39,52 @@ export async function POST(request: Request) {
       )
     }
 
-    for (const contact of contacts) {
-      try {
-        if (delay > 0 && results.length > 0) {
-          // Only delay between emails, not before the first one
-          await sleep(delay * 1000)
+    // Process contacts in chunks of 10
+    const chunkSize = 10;
+    for (let i = 0; i < contacts.length; i += chunkSize) {
+      const chunk = contacts.slice(i, i + chunkSize);
+      
+      for (const contact of chunk) {
+        try {
+          if (delay > 0 && results.length > 0) {
+            await sleep(delay * 1000)
+          }
+
+          // Replace template variables in content
+          const personalizedContent = content
+            .replace(/\{\{name\}\}/g, contact.name || '')
+            .replace(/\{\{email\}\}/g, contact.email || '')
+            .replace(/\{\{company\}\}/g, contact.company || '')
+
+          const mailOptions = {
+            from: {
+              name: sender.name,
+              address: sender.email
+            },
+            to: contact.email,
+            subject: subject,
+            html: personalizedContent,
+          }
+
+          const result = await transporter.sendMail(mailOptions)
+          results.push({
+            email: contact.email,
+            status: 'fulfilled',
+            value: result
+          })
+        } catch (error) {
+          console.error('Error sending to', contact.email, ':', error)
+          results.push({
+            email: contact.email,
+            status: 'rejected',
+            error: error instanceof Error ? error.message : 'Failed to send email'
+          })
         }
+      }
 
-        // Replace template variables in content
-        const personalizedContent = content
-          .replace(/\{\{name\}\}/g, contact.name || '')
-          .replace(/\{\{email\}\}/g, contact.email || '')
-          .replace(/\{\{company\}\}/g, contact.company || '')
-
-        const mailOptions = {
-          from: {
-            name: sender.name,
-            address: sender.email  // Must be verified in Mailjet
-          },
-          to: contact.email,
-          subject: subject,
-          html: personalizedContent,
-        }
-
-        const result = await transporter.sendMail(mailOptions)
-        results.push({
-          email: contact.email,
-          status: 'fulfilled',
-          value: result
-        })
-      } catch (error) {
-        console.error('Error sending to', contact.email, ':', error)
-        results.push({
-          email: contact.email,
-          status: 'rejected',
-          error: error instanceof Error ? error.message : 'Failed to send email'
-        })
+      // Add small delay between chunks
+      if (i + chunkSize < contacts.length) {
+        await sleep(1000)
       }
     }
 
