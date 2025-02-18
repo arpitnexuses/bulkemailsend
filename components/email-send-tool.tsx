@@ -56,8 +56,8 @@ export default function EmailSendTool() {
       if (isSending) {
         toast.loading(
           <div className="min-w-[200px]">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Sending Campaign</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <h3 className="font-semibold text-gray-900 ">Sending Campaign</h3>
+            <p className="text-sm text-gray-600">
               Preparing to send your emails...
             </p>
           </div>,
@@ -258,7 +258,7 @@ export default function EmailSendTool() {
   return (
     <>
       <time dateTime="2016-10-25" suppressHydrationWarning />
-      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900">
+      <div className="min-h-screen bg-[#f8fafc]">
         
         {/* Decorative background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -271,17 +271,17 @@ export default function EmailSendTool() {
             <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
               Email Campaign Tool
             </h1>
-            <p className="mt-4 text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
+            <p className="mt-4 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto font-medium leading-relaxed">
               Create and send personalized email campaigns to your contacts with ease
             </p>
-            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent pt-4">
+            <p className="text-xl md:text-2xl text-gray-600 font-medium bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent pt-4">
               ✨ Integrate with any API marketing tool (Gmail, Mailjet, Brevo, AWS & more) ✨
             </p>
           </header>
 
           <main className="container mx-auto px-4 max-w-7xl pb-16 space-y-8">
             {/* SMTP Settings - Full Width */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50">
               <div className="flex items-center justify-between gap-3 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg shadow-lg">
@@ -290,13 +290,13 @@ export default function EmailSendTool() {
                     </svg>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">SMTP Settings</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Configure your email server</p>
+                    <h2 className="text-xl font-bold text-gray-900">SMTP Settings</h2>
+                    <p className="text-sm text-gray-500">Configure your email server</p>
                   </div>
                 </div>
                 <button
                   onClick={handleSmtpReset}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200"
                   title="Reset SMTP configuration"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,7 +311,7 @@ export default function EmailSendTool() {
             {/* Two Column Layout for Email Composer and Contacts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Email Composer - Left Column */}
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50">
                 <div className="flex items-center justify-between gap-3 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-lg">
@@ -320,8 +320,8 @@ export default function EmailSendTool() {
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Compose Email</h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Create your campaign</p>
+                      <h2 className="text-xl font-bold text-gray-900">Compose Email</h2>
+                      <p className="text-sm text-gray-500">Create your campaign</p>
                     </div>
                   </div>
                   <button
@@ -332,7 +332,7 @@ export default function EmailSendTool() {
                       setContent("");
                       setDelay(0);
                     }}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200"
                     title="Reset email form"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -359,7 +359,7 @@ export default function EmailSendTool() {
                   disabled={contacts.length === 0}
                   className={`group w-full mt-6 py-4 px-6 rounded-xl font-medium text-lg transition-all duration-300 relative overflow-hidden
                     ${contacts.length === 0 
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600' 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                       : 'bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 hover:scale-[1.02] text-white shadow-lg hover:shadow-xl'
                     }`}
                 >
@@ -373,7 +373,7 @@ export default function EmailSendTool() {
               </div>
 
               {/* Contact Upload & List - Right Column */}
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50 dark:border-gray-700/50">
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-100/50">
                 <div className="flex items-center justify-between gap-3 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-gradient-to-br from-green-500 to-teal-500 rounded-lg shadow-lg">
@@ -382,8 +382,8 @@ export default function EmailSendTool() {
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contacts</h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Upload and manage recipients</p>
+                      <h2 className="text-xl font-bold text-gray-900">Contacts</h2>
+                      <p className="text-sm text-gray-500">Upload and manage recipients</p>
                     </div>
                   </div>
                   <button
@@ -391,8 +391,8 @@ export default function EmailSendTool() {
                     disabled={contacts.length === 0}
                     className={`p-2 rounded-full transition-colors duration-200 ${
                       contacts.length === 0 
-                        ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                     }`}
                     title="Clear all contacts"
                   >
