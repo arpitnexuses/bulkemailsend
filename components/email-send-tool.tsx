@@ -134,12 +134,7 @@ export default function EmailSendTool() {
             name: senderName || sender
           },
           content,
-          smtpConfig: {
-            ...smtpConfig,
-            host: 'in-v3.mailjet.com',
-            port: 587,
-            secure: false,
-          },
+          smtpConfig,
           delay,
         }),
       })
